@@ -43,6 +43,8 @@ namespace HiFiRushMusicMod
         private int lastUsedBPM;
         private MP3Player mp3Player;
 
+        private string scheduledTrackPath = string.Empty;
+
         // REQUIRED STRUCTS
 
         public struct MEMORY_BASIC_INFORMATION
@@ -71,27 +73,12 @@ namespace HiFiRushMusicMod
             public ushort processorRevision;
         }
 
-
-        /*[DllImport("user32.dll", SetLastError = true)]
-        static extern IntPtr GetDC(IntPtr hWnd);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        static extern bool ReleaseDC(IntPtr hWnd, IntPtr hDC);
-
-        [DllImport("gdi32.dll", SetLastError = true)]
-        static extern uint GetPixel(IntPtr hdc, int nXPos, int nYPos);
-
         private static Bitmap screenBitmap = new Bitmap(1, 1, PixelFormat.Format32bppArgb);
         private static Graphics g = Graphics.FromImage(screenBitmap);
         private Point catCoordinates = new Point(956, 950); //new Point(956, 825);
 
-        private long lastTime;
-        private int beatCount = 0;
         private bool upwardsBeat = true;
         private int tolerance = 16;
-        private static IntPtr hdc;*/
-
 
         public Form1()
         {
@@ -100,34 +87,39 @@ namespace HiFiRushMusicMod
 
         private void tmrScreenGrabber_Tick(object sender, EventArgs e)
         {
-            //g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
-            //g.CopyFromScreen(Screen.PrimaryScreen.Bounds.Left + catCoordinates.X, Screen.PrimaryScreen.Bounds.Top + catCoordinates.Y, 0, 0, new Size(1, 1));
+            if (scheduledTrackPath == string.Empty) return;
 
-            /*Color beatColor = GetPixelColor(catCoordinates.X, catCoordinates.Y); // screenBitmap.GetPixel(0, 0);
-            this.BackColor = beatColor;
+            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
+            g.CopyFromScreen(Screen.PrimaryScreen.Bounds.Left + catCoordinates.X, Screen.PrimaryScreen.Bounds.Top + catCoordinates.Y, 0, 0, new Size(1, 1));
+
+            Color beatColor = screenBitmap.GetPixel(0, 0);
+            this.btnHit.BackColor = beatColor;
 
             if (upwardsBeat && beatColor.R < (255 - tolerance)) return;
             if (!upwardsBeat && beatColor.R > tolerance) return;
 
             if (upwardsBeat)
             {
+                if (scheduledTrackPath != string.Empty)
+                {
+                    if (mp3Player != null)
+                    {
+                        mp3Player.Stop();
+                        mp3Player.Dispose();
+                    }
+                    mp3Player = new MP3Player(scheduledTrackPath);
+                    mp3Player.Play();
+
+                    scheduledTrackPath = string.Empty;
+                }
+                
                 upwardsBeat = false;
-                beatCount++;
                 return;
             }
             else
             {
                 upwardsBeat = true;
             }
-
-
-            long elapsedMillis = DateTimeOffset.Now.ToUnixTimeMilliseconds() - lastTime;
-
-            if (beatCount <= 0 || elapsedMillis <= 0) return;
-
-            double bpm = (beatCount * 60000.0) / elapsedMillis;
-
-            this.Text = bpm.ToString();*/
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -136,7 +128,7 @@ namespace HiFiRushMusicMod
             hdc = GetDC(IntPtr.Zero); // Get the device context for the entire screen
             */
 
-            Process game = ProcessFromWindowTitle("Hi-Fi RUSH");
+            Process game = Process.GetProcessById(1608); //game = ProcessFromWindowTitle("Hi-Fi RUSH");
             if (game == null || game.MainModule == null)
             {
                 MessageBox.Show("Game not found");
@@ -172,30 +164,6 @@ namespace HiFiRushMusicMod
             return null;
         }
 
-
-        private void tmrResetter_Tick(object sender, EventArgs e)
-        {
-            /*
-            beatCount = 0;
-            lastTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
-            upwardsBeat = true;
-            */
-        }
-
-        public static Color GetPixelColor(int x, int y)
-        {
-            return Color.Red;
-            /*
-            uint pixel = GetPixel(hdc, x, y); // Get the pixel color at the specified coordinates
-
-            // Extract the RGB components from the pixel color (which is in the format 0x00BBGGRR)
-            int r = (int)(pixel & 0x000000FF);
-            int g = (int)((pixel & 0x0000FF00) >> 8);
-            int b = (int)((pixel & 0x00FF0000) >> 16);
-
-            return Color.FromArgb(r, g, b);*/
-        }
-
         private float GetBPMFromMemory()
         {
             return gProc.read<float>(bpmPtr);
@@ -220,16 +188,9 @@ namespace HiFiRushMusicMod
 
             if (closestBPMValue != lastUsedBPM)
             {
-                if (mp3Player != null)
-                {
-                    mp3Player.Stop();
-                    mp3Player.Dispose();
-                }
-                mp3Player = new MP3Player(Path.Join(AppDomain.CurrentDomain.BaseDirectory, closestBPMValue.ToString() + ".mp3"));
-                mp3Player.Play();
+                scheduledTrackPath = Path.Join(AppDomain.CurrentDomain.BaseDirectory, closestBPMValue.ToString() + ".mp3");
 
                 bpmLabel.Text = "BPM: " + ((int)Math.Floor(bpm)).ToString() + " (" + closestBPMValue.ToString() + ")";
-
 
                 lastUsedBPM = closestBPMValue;
             }

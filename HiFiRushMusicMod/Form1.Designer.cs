@@ -29,34 +29,17 @@
         private void InitializeComponent()
         {
             components = new System.ComponentModel.Container();
-            pbxScreenGrab = new PictureBox();
             tmrScreenGrabber = new System.Windows.Forms.Timer(components);
-            tmrResetter = new System.Windows.Forms.Timer(components);
             tmrMemoryBPM = new System.Windows.Forms.Timer(components);
             bpmLabel = new Label();
-            ((System.ComponentModel.ISupportInitialize)pbxScreenGrab).BeginInit();
+            btnHit = new Button();
             SuspendLayout();
-            // 
-            // pbxScreenGrab
-            // 
-            pbxScreenGrab.Location = new Point(12, 12);
-            pbxScreenGrab.Name = "pbxScreenGrab";
-            pbxScreenGrab.Size = new Size(283, 210);
-            pbxScreenGrab.SizeMode = PictureBoxSizeMode.StretchImage;
-            pbxScreenGrab.TabIndex = 0;
-            pbxScreenGrab.TabStop = false;
             // 
             // tmrScreenGrabber
             // 
             tmrScreenGrabber.Enabled = true;
             tmrScreenGrabber.Interval = 16;
             tmrScreenGrabber.Tick += tmrScreenGrabber_Tick;
-            // 
-            // tmrResetter
-            // 
-            tmrResetter.Enabled = true;
-            tmrResetter.Interval = 10000;
-            tmrResetter.Tick += tmrResetter_Tick;
             // 
             // tmrMemoryBPM
             // 
@@ -68,33 +51,40 @@
             // 
             bpmLabel.AutoSize = true;
             bpmLabel.Font = new Font("Segoe UI", 24F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            bpmLabel.Location = new Point(12, 235);
+            bpmLabel.Location = new Point(12, 12);
             bpmLabel.Name = "bpmLabel";
             bpmLabel.Size = new Size(105, 45);
             bpmLabel.TabIndex = 1;
             bpmLabel.Text = "label1";
             // 
+            // btnHit
+            // 
+            btnHit.Enabled = false;
+            btnHit.Location = new Point(12, 60);
+            btnHit.Name = "btnHit";
+            btnHit.Size = new Size(160, 77);
+            btnHit.TabIndex = 2;
+            btnHit.Text = "Beat Hit Indication";
+            btnHit.UseVisualStyleBackColor = true;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(800, 450);
+            ClientSize = new Size(204, 153);
+            Controls.Add(btnHit);
             Controls.Add(bpmLabel);
-            Controls.Add(pbxScreenGrab);
             Name = "Form1";
             Text = "Form1";
             Load += Form1_Load;
-            ((System.ComponentModel.ISupportInitialize)pbxScreenGrab).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
 
         #endregion
-
-        private PictureBox pbxScreenGrab;
         private System.Windows.Forms.Timer tmrScreenGrabber;
-        private System.Windows.Forms.Timer tmrResetter;
         private System.Windows.Forms.Timer tmrMemoryBPM;
         private Label bpmLabel;
+        private Button btnHit;
     }
 }
