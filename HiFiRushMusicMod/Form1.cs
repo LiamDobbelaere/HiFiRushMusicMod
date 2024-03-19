@@ -8,17 +8,8 @@ namespace HiFiRushMusicMod
 {
     public partial class Form1 : Form
     {
-        // REQUIRED CONSTS
-
-        const int PROCESS_QUERY_INFORMATION = 0x0400;
-        const int MEM_COMMIT = 0x00001000;
-        const int PAGE_READWRITE = 0x04;
-        const int PROCESS_WM_READ = 0x0010;
-
         GMemProcess gProc;
         ptrObject bpmPtr;
-
-        // REQUIRED METHODS
 
         [DllImport("kernel32.dll")]
         public static extern IntPtr OpenProcess
@@ -28,12 +19,6 @@ namespace HiFiRushMusicMod
         static extern bool ReadProcessMemory(IntPtr hProcess,
             IntPtr lpBaseAddress, [Out] byte[] lpBuffer, int dwSize, out IntPtr lpNumberOfBytesRead);
 
-        [DllImport("kernel32.dll")]
-        static extern void GetSystemInfo(out SYSTEM_INFO lpSystemInfo);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        static extern int VirtualQueryEx(IntPtr hProcess,
-        IntPtr lpAddress, out MEMORY_BASIC_INFORMATION lpBuffer, uint dwLength);
 
         private int[] recognizedBpm = new int[] {
             135,
@@ -44,34 +29,6 @@ namespace HiFiRushMusicMod
         private MP3Player mp3Player;
 
         private string scheduledTrackPath = string.Empty;
-
-        // REQUIRED STRUCTS
-
-        public struct MEMORY_BASIC_INFORMATION
-        {
-            public int BaseAddress;
-            public int AllocationBase;
-            public int AllocationProtect;
-            public int RegionSize;
-            public int State;
-            public int Protect;
-            public int lType;
-        }
-
-        public struct SYSTEM_INFO
-        {
-            public ushort processorArchitecture;
-            ushort reserved;
-            public uint pageSize;
-            public IntPtr minimumApplicationAddress;
-            public IntPtr maximumApplicationAddress;
-            public IntPtr activeProcessorMask;
-            public uint numberOfProcessors;
-            public uint processorType;
-            public uint allocationGranularity;
-            public ushort processorLevel;
-            public ushort processorRevision;
-        }
 
         private static Bitmap screenBitmap = new Bitmap(1, 1, PixelFormat.Format32bppArgb);
         private static Graphics g = Graphics.FromImage(screenBitmap);
