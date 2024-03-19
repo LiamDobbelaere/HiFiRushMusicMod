@@ -32,6 +32,8 @@
             pbxScreenGrab = new PictureBox();
             tmrScreenGrabber = new System.Windows.Forms.Timer(components);
             tmrResetter = new System.Windows.Forms.Timer(components);
+            tmrMemoryBPM = new System.Windows.Forms.Timer(components);
+            bpmLabel = new Label();
             ((System.ComponentModel.ISupportInitialize)pbxScreenGrab).BeginInit();
             SuspendLayout();
             // 
@@ -56,17 +58,35 @@
             tmrResetter.Interval = 10000;
             tmrResetter.Tick += tmrResetter_Tick;
             // 
+            // tmrMemoryBPM
+            // 
+            tmrMemoryBPM.Enabled = true;
+            tmrMemoryBPM.Interval = 1000;
+            tmrMemoryBPM.Tick += tmrMemoryBPM_Tick;
+            // 
+            // bpmLabel
+            // 
+            bpmLabel.AutoSize = true;
+            bpmLabel.Font = new Font("Segoe UI", 24F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            bpmLabel.Location = new Point(12, 235);
+            bpmLabel.Name = "bpmLabel";
+            bpmLabel.Size = new Size(105, 45);
+            bpmLabel.TabIndex = 1;
+            bpmLabel.Text = "label1";
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 450);
+            Controls.Add(bpmLabel);
             Controls.Add(pbxScreenGrab);
             Name = "Form1";
             Text = "Form1";
             Load += Form1_Load;
             ((System.ComponentModel.ISupportInitialize)pbxScreenGrab).EndInit();
             ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
@@ -74,5 +94,7 @@
         private PictureBox pbxScreenGrab;
         private System.Windows.Forms.Timer tmrScreenGrabber;
         private System.Windows.Forms.Timer tmrResetter;
+        private System.Windows.Forms.Timer tmrMemoryBPM;
+        private Label bpmLabel;
     }
 }

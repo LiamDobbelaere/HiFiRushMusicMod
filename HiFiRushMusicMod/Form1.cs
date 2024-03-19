@@ -15,6 +15,9 @@ namespace HiFiRushMusicMod
         const int PAGE_READWRITE = 0x04;
         const int PROCESS_WM_READ = 0x0010;
 
+        GMemProcess gProc;
+        ptrObject bpmPtr;
+
         // REQUIRED METHODS
 
         [DllImport("kernel32.dll")]
@@ -32,6 +35,13 @@ namespace HiFiRushMusicMod
         static extern int VirtualQueryEx(IntPtr hProcess,
         IntPtr lpAddress, out MEMORY_BASIC_INFORMATION lpBuffer, uint dwLength);
 
+        private int[] recognizedBpm = new int[] {
+            135,
+            155
+        };
+
+        private int lastUsedBPM;
+        private MP3Player mp3Player;
 
         // REQUIRED STRUCTS
 
@@ -125,14 +135,6 @@ namespace HiFiRushMusicMod
             /*lastTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
             hdc = GetDC(IntPtr.Zero); // Get the device context for the entire screen
             */
-            SYSTEM_INFO sys_info = new SYSTEM_INFO();
-            GetSystemInfo(out sys_info);
-
-            IntPtr proc_min_address = sys_info.minimumApplicationAddress;
-            IntPtr proc_max_address = sys_info.maximumApplicationAddress;
-
-            long proc_min_address_l = (long)proc_min_address;
-            long proc_max_address_l = (long)proc_max_address;
 
             Process game = ProcessFromWindowTitle("Hi-Fi RUSH");
             if (game == null || game.MainModule == null)
@@ -151,12 +153,8 @@ namespace HiFiRushMusicMod
                 0x10,
             };
 
-            GMemProcess gProc = new GMemProcess(game, game.MainModule);
-            ptrObject obj = gProc.create_ptr_object(0x0728D6C8, offsets);
-
-            float floatValue = gProc.read<float>(obj);
-
-            MessageBox.Show(floatValue.ToString());
+            gProc = new GMemProcess(game, game.MainModule);
+            bpmPtr = gProc.create_ptr_object(0x0728D6C8, offsets);
         }
 
 
@@ -198,5 +196,43 @@ namespace HiFiRushMusicMod
             return Color.FromArgb(r, g, b);*/
         }
 
+        private float GetBPMFromMemory()
+        {
+            return gProc.read<float>(bpmPtr);
+        }
+
+        private void tmrMemoryBPM_Tick(object sender, EventArgs e)
+        {
+            float bpm = GetBPMFromMemory();
+            int bpmAsInt = ((int)Math.Floor(bpm));
+
+            int closestBPMValue = 0;
+            int lastDiff = int.MaxValue;
+            for (int i = 0; i < recognizedBpm.Length; i++)
+            {
+                int diff = Math.Abs(recognizedBpm[i] - bpmAsInt);
+                if (diff < lastDiff)
+                {
+                    lastDiff = diff;
+                    closestBPMValue = recognizedBpm[i];
+                }
+            }
+
+            if (closestBPMValue != lastUsedBPM)
+            {
+                if (mp3Player != null)
+                {
+                    mp3Player.Stop();
+                    mp3Player.Dispose();
+                }
+                mp3Player = new MP3Player(Path.Join(AppDomain.CurrentDomain.BaseDirectory, closestBPMValue.ToString() + ".mp3"));
+                mp3Player.Play();
+
+                bpmLabel.Text = "BPM: " + ((int)Math.Floor(bpm)).ToString() + " (" + closestBPMValue.ToString() + ")";
+
+
+                lastUsedBPM = closestBPMValue;
+            }
+        }
     }
 }
