@@ -1,11 +1,22 @@
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing.Imaging;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.JavaScript;
+using System.Text.Json.Serialization;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace HiFiRushMusicMod
 {
+    public class Config
+    {
+        public int ProcessId { get; set; }
+        public Dictionary<string, List<string>> TrackMap { get; set; }
+    }
+
     public partial class Form1 : Form
     {
         GMemProcess gProc;
@@ -20,11 +31,9 @@ namespace HiFiRushMusicMod
             IntPtr lpBaseAddress, [Out] byte[] lpBuffer, int dwSize, out IntPtr lpNumberOfBytesRead);
 
 
-        private int[] recognizedBpm = new int[] {
-            135,
-            155
-        };
+        private int[] recognizedBpm;
 
+        private Config config;
         private int lastUsedBPM;
         private MP3Player mp3Player;
 
@@ -57,7 +66,7 @@ namespace HiFiRushMusicMod
 
             if (upwardsBeat)
             {
-                if (scheduledTrackPath != string.Empty)
+                /*if (scheduledTrackPath != string.Empty)
                 {
                     if (mp3Player != null)
                     {
@@ -68,7 +77,7 @@ namespace HiFiRushMusicMod
                     mp3Player.Play();
 
                     scheduledTrackPath = string.Empty;
-                }
+                }*/
                 
                 upwardsBeat = false;
                 return;
@@ -81,14 +90,36 @@ namespace HiFiRushMusicMod
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            string configPath = Path.Join(AppDomain.CurrentDomain.BaseDirectory, "config.json");
+
+            config = JsonConvert.DeserializeObject<Config>(File.ReadAllText(configPath));
+
+            if (config.ProcessId == null)
+            {
+                MessageBox.Show("No processId specified in config");
+                return;
+            }
+
+            recognizedBpm = config.TrackMap.Keys.Select(k => int.Parse(k)).ToArray();
+
             /*lastTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
             hdc = GetDC(IntPtr.Zero); // Get the device context for the entire screen
             */
 
-            Process game = Process.GetProcessById(1608); //game = ProcessFromWindowTitle("Hi-Fi RUSH");
+            Process game;
+            try
+            {
+             game = Process.GetProcessById((int)config.ProcessId); //game = ProcessFromWindowTitle("Hi-Fi RUSH");
+            }
+            catch (ArgumentException ex)
+            {
+                MessageBox.Show("Game not found, tried process id " + config.ProcessId.ToString());
+                return;
+            }
+
             if (game == null || game.MainModule == null)
             {
-                MessageBox.Show("Game not found");
+                MessageBox.Show("Game not found, tried process id " + config.ProcessId.ToString());
                 return;
             }
 
@@ -145,7 +176,18 @@ namespace HiFiRushMusicMod
 
             if (closestBPMValue != lastUsedBPM)
             {
-                scheduledTrackPath = Path.Join(AppDomain.CurrentDomain.BaseDirectory, closestBPMValue.ToString() + ".mp3");
+                string[] possibleTracks = config.TrackMap[closestBPMValue.ToString()].ToArray();
+                string mp3Name = possibleTracks[new Random().Next(0, possibleTracks.Length)];
+                scheduledTrackPath = Path.Join(AppDomain.CurrentDomain.BaseDirectory, mp3Name);
+
+                if (mp3Player != null)
+                {
+                    mp3Player.Stop();
+                    mp3Player.Dispose();
+                }
+                mp3Player = new MP3Player(scheduledTrackPath);
+                mp3Player.Play();
+
 
                 bpmLabel.Text = "BPM: " + ((int)Math.Floor(bpm)).ToString() + " (" + closestBPMValue.ToString() + ")";
 
