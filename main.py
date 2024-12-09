@@ -3,32 +3,36 @@ import cv2
 import time
 import math
 import os
-import pygame
-import threading
+import vlc
 from mss import mss
 
-# capable of playing an mp3 song, crossfading with the previous while also optionally copying the position of the previous song
-# does not block the main thread (so no time.sleep)
-# everything runs on a separate thread
 class CrossfadePlayer:
     def __init__(self):
-        pygame.mixer.init()
-        pygame.mixer.music.set_volume(0.7)
+        self.players = [vlc.Instance().media_player_new() for _ in range(2)]
+        self.current_player = 0
 
-        self.last_start_offset = 0
+    def crossfade_tracks(self, file, duration, should_copy_pos):
+        print(f'Crossfading to {file} with duration {duration} and should_copy_pos {should_copy_pos}')
+        player = self.players[self.current_player]
+        player.set_mrl(file)
+        player.play()
 
-    def crossfade_tracks(self, next_song, crossfade_time, should_copy_pos):
         if should_copy_pos:
-            copied_pos = pygame.mixer.music.get_pos()
-            self.last_start_offset += copied_pos / 1000
-            print(f'Crossfading {next_song} with copied position {self.last_start_offset + copied_pos / 1000}')
-            pygame.mixer.music.load(next_song)
-            pygame.mixer.music.play(0, self.last_start_offset)
+            copied_pos = self.players[1 - self.current_player].get_time()
+            player.set_time(copied_pos)
         else:
-            print(f'Playing {next_song} instantly')
-            pygame.mixer.music.load(next_song)
-            pygame.mixer.music.play()
-            self.last_start_offset = 0
+            player.set_time(0)
+
+        print(f'Set volume of player {self.current_player} to 100 and player {1 - self.current_player} to 0')
+        self.players[1 - self.current_player].audio_set_volume(0)
+        player.audio_set_volume(100)
+
+        # while player.audio_get_volume() < 100:
+        #     player.audio_set_volume(player.audio_get_volume() + 1)
+        #     time.sleep(duration / 100)
+
+        self.current_player = 1 - self.current_player
+
 class FastCapture:
     def __init__(self, bounding_box):
         self.bounding_box = bounding_box
