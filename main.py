@@ -4,6 +4,7 @@ import time
 import math
 import os
 import vlc
+import threading
 from mss import mss
 
 class CrossfadePlayer:
@@ -11,26 +12,69 @@ class CrossfadePlayer:
         self.players = [vlc.Instance().media_player_new() for _ in range(2)]
         self.current_player = 0
 
+    def crossfade(self, duration):
+        # """
+        # Gradually crossfade between the two players.
+        # """
+        old_player = self.players[1 - self.current_player]
+        new_player = self.players[self.current_player]
+
+        # steps = 100  # Number of steps for crossfade
+        # step_duration = duration / steps  # Duration of each step
+
+        # for i in range(steps + 1):
+        #     old_player.audio_set_volume(100 - i)
+        #     new_player.audio_set_volume(i)
+        #     time.sleep(step_duration)
+
+        # # Stop the old player after the crossfade is complete
+        # old_player.stop()
+        old_player.audio_set_volume(0)
+        new_player.audio_set_volume(100)
+
     def crossfade_tracks(self, file, duration, should_copy_pos):
+        """
+        Crossfade to a new track.
+        
+        :param file: Path to the new track file.
+        :param duration: Duration of the crossfade in seconds.
+        :param should_copy_pos: Boolean indicating whether to copy the position from the old player.
+        """
         print(f'Crossfading to {file} with duration {duration} and should_copy_pos {should_copy_pos}')
         player = self.players[self.current_player]
-        player.set_mrl(file)
+        old_player = self.players[1 - self.current_player]
+
+        player.audio_set_volume(100)
+        old_player.audio_set_volume(100)
+        
+        # Load the new media
+        if not player.set_mrl(file):
+            print(f"Error: Failed to load {file}")
+            return
+
+        copied_pos = old_player.get_time()
+        old_player.stop()
         player.play()
 
+        print(f'Started playing {file}')
+
+        # Wait until the new player starts playing
+        while player.get_state() not in [vlc.State.Playing, vlc.State.Paused]:
+            time.sleep(0.1)
+
+        print(f'Player state: {player.get_state()}')
+
+        # Set playback position
         if should_copy_pos:
-            copied_pos = self.players[1 - self.current_player].get_time()
+            print(f'Copying position {copied_pos}')
             player.set_time(copied_pos)
         else:
             player.set_time(0)
 
-        print(f'Set volume of player {self.current_player} to 100 and player {1 - self.current_player} to 0')
-        self.players[1 - self.current_player].audio_set_volume(0)
-        player.audio_set_volume(100)
+        # Start crossfade in a separate thread
+        #threading.Thread(target=self.crossfade, args=(duration,)).start()
 
-        # while player.audio_get_volume() < 100:
-        #     player.audio_set_volume(player.audio_get_volume() + 1)
-        #     time.sleep(duration / 100)
-
+        # Update current player
         self.current_player = 1 - self.current_player
 
 class FastCapture:
