@@ -3,8 +3,70 @@ import cv2
 import time
 import math
 import os
+import pygame
 from mss import mss
-from pygame import mixer
+
+class CrossfadePlayer:
+    def __init__(self):
+        """Initialize the player and pygame mixer."""
+        pygame.mixer.init()
+        self.current_track = None
+        self.current_channel = None
+
+    def play_track(self, file, loop=False, start_pos=0):
+        """Play an audio track, optionally starting at a specific position."""
+        sound = pygame.mixer.Sound(file)
+        channel = sound.play(-1 if loop else 0)  # Loop if required
+        if start_pos > 0:
+            channel.set_volume(0)  # Start muted if starting at a specific position
+            pygame.time.delay(int(start_pos * 1000))  # Seek to the position
+        self.current_track = sound
+        self.current_channel = channel
+        return sound, channel
+
+    def get_position(self):
+        """Get the current playback position in seconds."""
+        if self.current_channel and self.current_channel.get_busy():
+            return pygame.mixer.music.get_pos() / 1000  # Position in seconds
+        return 0
+
+    def crossfade_tracks(self, new_track_file, fade_duration=3, copy_position=False):
+        """Crossfade to a new track with an option to copy playback position."""
+        position = 0
+        if copy_position and self.current_channel and self.current_channel.get_busy():
+            position = self.get_position()  # Get the current position of the active track
+
+        # Load the new track
+        new_track = pygame.mixer.Sound(new_track_file)
+        new_channel = new_track.play(-1)  # Loop the new track
+        if position > 0:
+            new_channel.set_volume(0)  # Start muted if copying position
+            pygame.time.delay(int(position * 1000))  # Skip to the position
+
+        # Perform the crossfade
+        steps = 20  # Number of steps for the fade
+        for i in range(steps + 1):
+            volume_a = max(0, 1 - i / steps)
+            volume_b = min(1, i / steps)
+            if self.current_channel:
+                self.current_channel.set_volume(volume_a)
+            new_channel.set_volume(volume_b)
+            time.sleep(fade_duration / steps)
+
+        # Stop the current track after the crossfade
+        if self.current_track:
+            self.current_track.stop()
+
+        # Update the current track and channel
+        self.current_track = new_track
+        self.current_channel = new_channel
+
+    def stop(self):
+        """Stop playback of the current track."""
+        if self.current_track:
+            self.current_track.stop()
+        self.current_track = None
+        self.current_channel = None
 
 class FastCapture:
     def __init__(self, bounding_box):
@@ -85,6 +147,8 @@ beat_indication_color = 0
 cv2.namedWindow('output', cv2.WINDOW_NORMAL)    # Create window with freedom of dimensions
 cv2.resizeWindow('output', 256, 256)
 
+crossfade_player = CrossfadePlayer()
+
 # get all mp3 files in mp3 folder
 mp3_files = []
 for file in os.listdir('mp3'):
@@ -96,9 +160,6 @@ for file in os.listdir('mp3'):
         mp3_files.append({'name': name, 'bpm': int(bpm), 'rank': rank.lower(), 'file': file })
 
 print(mp3_files)
-
-mixer.init()
-mixer.music.set_volume(0)
 
 ignore_rank_for_mp3_selection = False
 debugging = False
@@ -144,6 +205,7 @@ while True:
                     matching_track_stability += 1
                 else:
                     matching_track_stability = 0
+                    last_matching_track = ''
 
                 with open('beat.log', 'a') as f:
                     f.write(f'{beat_log_index} {pixel[0]} {pixel[1]} {pixel[2]} {avg_bpm} {rank} {matching_track} {matching_track_stability}\n')
@@ -153,13 +215,11 @@ while True:
                     should_copy_pos = current_track != None and current_track['name'] == matching_track['name']
                     current_track = matching_track
 
-                    copied_pos = mixer.music.get_pos()
+                    crossfade_player.crossfade_tracks(f'mp3/{current_track["file"]}', 3, should_copy_pos)
 
-                    mixer.music.load(f'mp3/{current_track['file']}')
-                    mixer.music.play(loops=-1)
-                    mixer.music.set_volume(1)
-                    if should_copy_pos:
-                        mixer.music.set_pos(copied_pos)
+                    #copied_pos = mixer.music.get_pos()
+
+                    #mixer.music.load(f'mp3/{current_track['file']}')
 
                 last_matching_track = matching_track
                 time_last_beat = time.time()
