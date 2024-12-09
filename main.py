@@ -33,6 +33,9 @@ class CrossfadePlayer:
         new_player.audio_set_volume(100)
 
     def crossfade_tracks(self, file, duration, should_copy_pos):
+        threading.Thread(target=self._crossfade_tracks, args=(file, duration, should_copy_pos)).start()
+
+    def _crossfade_tracks(self, file, duration, should_copy_pos):
         """
         Crossfade to a new track.
         
@@ -53,7 +56,6 @@ class CrossfadePlayer:
             return
 
         copied_pos = old_player.get_time()
-        old_player.stop()
         player.play()
 
         print(f'Started playing {file}')
@@ -62,6 +64,7 @@ class CrossfadePlayer:
         while player.get_state() not in [vlc.State.Playing, vlc.State.Paused]:
             time.sleep(0.1)
 
+        old_player.stop()
         print(f'Player state: {player.get_state()}')
 
         # Set playback position
@@ -70,9 +73,6 @@ class CrossfadePlayer:
             player.set_time(copied_pos)
         else:
             player.set_time(0)
-
-        # Start crossfade in a separate thread
-        #threading.Thread(target=self.crossfade, args=(duration,)).start()
 
         # Update current player
         self.current_player = 1 - self.current_player
