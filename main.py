@@ -4,70 +4,31 @@ import time
 import math
 import os
 import pygame
+import threading
 from mss import mss
 
+# capable of playing an mp3 song, crossfading with the previous while also optionally copying the position of the previous song
+# does not block the main thread (so no time.sleep)
+# everything runs on a separate thread
 class CrossfadePlayer:
     def __init__(self):
-        """Initialize the player and pygame mixer."""
         pygame.mixer.init()
-        self.current_track = None
-        self.current_channel = None
+        pygame.mixer.music.set_volume(0.7)
 
-    def play_track(self, file, loop=False, start_pos=0):
-        """Play an audio track, optionally starting at a specific position."""
-        sound = pygame.mixer.Sound(file)
-        channel = sound.play(-1 if loop else 0)  # Loop if required
-        if start_pos > 0:
-            channel.set_volume(0)  # Start muted if starting at a specific position
-            pygame.time.delay(int(start_pos * 1000))  # Seek to the position
-        self.current_track = sound
-        self.current_channel = channel
-        return sound, channel
+        self.last_start_offset = 0
 
-    def get_position(self):
-        """Get the current playback position in seconds."""
-        if self.current_channel and self.current_channel.get_busy():
-            return pygame.mixer.music.get_pos() / 1000  # Position in seconds
-        return 0
-
-    def crossfade_tracks(self, new_track_file, fade_duration=3, copy_position=False):
-        """Crossfade to a new track with an option to copy playback position."""
-        position = 0
-        if copy_position and self.current_channel and self.current_channel.get_busy():
-            position = self.get_position()  # Get the current position of the active track
-
-        # Load the new track
-        new_track = pygame.mixer.Sound(new_track_file)
-        new_channel = new_track.play(-1)  # Loop the new track
-        if position > 0:
-            new_channel.set_volume(0)  # Start muted if copying position
-            pygame.time.delay(int(position * 1000))  # Skip to the position
-
-        # Perform the crossfade
-        steps = 20  # Number of steps for the fade
-        for i in range(steps + 1):
-            volume_a = max(0, 1 - i / steps)
-            volume_b = min(1, i / steps)
-            if self.current_channel:
-                self.current_channel.set_volume(volume_a)
-            new_channel.set_volume(volume_b)
-            time.sleep(fade_duration / steps)
-
-        # Stop the current track after the crossfade
-        if self.current_track:
-            self.current_track.stop()
-
-        # Update the current track and channel
-        self.current_track = new_track
-        self.current_channel = new_channel
-
-    def stop(self):
-        """Stop playback of the current track."""
-        if self.current_track:
-            self.current_track.stop()
-        self.current_track = None
-        self.current_channel = None
-
+    def crossfade_tracks(self, next_song, crossfade_time, should_copy_pos):
+        if should_copy_pos:
+            copied_pos = pygame.mixer.music.get_pos()
+            self.last_start_offset += copied_pos / 1000
+            print(f'Crossfading {next_song} with copied position {self.last_start_offset + copied_pos / 1000}')
+            pygame.mixer.music.load(next_song)
+            pygame.mixer.music.play(0, self.last_start_offset)
+        else:
+            print(f'Playing {next_song} instantly')
+            pygame.mixer.music.load(next_song)
+            pygame.mixer.music.play()
+            self.last_start_offset = 0
 class FastCapture:
     def __init__(self, bounding_box):
         self.bounding_box = bounding_box
@@ -109,8 +70,8 @@ def get_rank_from_color(color):
 
     if sRankDistance < tolerance:
         return 'S'
-    elif aRankDistance < tolerance:
-        return 'A'
+    #elif aRankDistance < tolerance:
+    #    return 'A'
     else:
         return 'LOWER'
 
@@ -147,12 +108,13 @@ beat_indication_color = 0
 cv2.namedWindow('output', cv2.WINDOW_NORMAL)    # Create window with freedom of dimensions
 cv2.resizeWindow('output', 256, 256)
 
+# Run crossfade player in a separate thread
 crossfade_player = CrossfadePlayer()
 
 # get all mp3 files in mp3 folder
 mp3_files = []
 for file in os.listdir('mp3'):
-    if file.endswith('.mp3'):
+    if file.endswith('.ogg'):
         # split on . and take the first part
         (name, bpm, rank, _) = file.split('.')
 
@@ -162,7 +124,7 @@ for file in os.listdir('mp3'):
 print(mp3_files)
 
 ignore_rank_for_mp3_selection = False
-debugging = False
+debugging = True
 
 beat_log_index = 0
 matching_track_stability = 0
