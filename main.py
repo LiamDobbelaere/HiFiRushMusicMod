@@ -103,6 +103,10 @@ mixer.music.set_volume(0)
 ignore_rank_for_mp3_selection = False
 debugging = False
 
+beat_log_index = 0
+matching_track_stability = 0
+last_matching_track = ''
+
 while True:
     (sct_img, pixel) = bpmCatCapture.get_pixel(*bpmCatOffset)
     cat_r = pixel[0]
@@ -110,9 +114,11 @@ while True:
     rank = get_rank_from_color(rank_color)
     
     # if last change was too fast, ignore this change
-    ignore_color_change = (time.time() - time_last_color_change) < 0.1
+    color_changed_too_fast = (time.time() - time_last_color_change) < 0.1
 
-    if (not ignore_color_change) and (cat_r != cat_r_last):
+    green_and_blue_are_zero = pixel[1] == 0 and pixel[2] == 0
+
+    if (not color_changed_too_fast) and (cat_r != cat_r_last) and green_and_blue_are_zero:
         time_last_color_change = time.time()
         beat_dir = -1
         
@@ -131,14 +137,25 @@ while True:
                 bpmRollingAverage.add(bpm)
 
                 avg_bpm = bpmRollingAverage.get()
+
                 matching_track = find_matching_track(avg_bpm, rank)
 
-                if matching_track != None and current_track != matching_track['file']:
+                if matching_track != None and matching_track == last_matching_track:
+                    matching_track_stability += 1
+                else:
+                    matching_track_stability = 0
+
+                with open('beat.log', 'a') as f:
+                    f.write(f'{beat_log_index} {pixel[0]} {pixel[1]} {pixel[2]} {avg_bpm} {rank} {matching_track} {matching_track_stability}\n')
+                    beat_log_index += 1
+
+                if matching_track != None and current_track != matching_track['file'] and matching_track_stability > 3:
                     current_track = matching_track['file']
                     mixer.music.load(f'mp3/{current_track}')
                     mixer.music.play(loops=-1)
                     mixer.music.set_volume(1)
 
+                last_matching_track = matching_track
                 time_last_beat = time.time()
     cat_r_last = cat_r                
 
