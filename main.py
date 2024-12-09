@@ -143,7 +143,7 @@ rankCapture = FastCapture({'top': 185, 'left': 1710, 'width': 1, 'height': 1 })
 
 bpmCatOffset = (32, 8)
 
-bpmRollingAverage = RollingAverage(15)
+bpmRollingAverage = RollingAverage(5)
 
 cat_r_last = 0
 beat_dir_last = -1
