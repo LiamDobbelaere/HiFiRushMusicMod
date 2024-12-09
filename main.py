@@ -62,7 +62,7 @@ def find_matching_track(bpm, rank):
 sRankColor = (0xEF, 0x13, 0x75)
 aRankColor = (0xE4, 0x30, 0x0B)
 
-current_track = ''
+current_track = None
 
 #bpmCatCapture = FastCapture({'top': 945, 'left': 930, 'width': 64, 'height': 64 })
 # BPM rush mode:
@@ -149,11 +149,17 @@ while True:
                     f.write(f'{beat_log_index} {pixel[0]} {pixel[1]} {pixel[2]} {avg_bpm} {rank} {matching_track} {matching_track_stability}\n')
                     beat_log_index += 1
 
-                if matching_track != None and current_track != matching_track['file'] and matching_track_stability > 3:
-                    current_track = matching_track['file']
-                    mixer.music.load(f'mp3/{current_track}')
+                if matching_track != None and (current_track == None or current_track['file'] != matching_track['file']) and matching_track_stability > 3:
+                    should_copy_pos = current_track != None and current_track['name'] == matching_track['name']
+                    current_track = matching_track
+
+                    copied_pos = mixer.music.get_pos()
+
+                    mixer.music.load(f'mp3/{current_track['file']}')
                     mixer.music.play(loops=-1)
                     mixer.music.set_volume(1)
+                    if should_copy_pos:
+                        mixer.music.set_pos(copied_pos)
 
                 last_matching_track = matching_track
                 time_last_beat = time.time()
